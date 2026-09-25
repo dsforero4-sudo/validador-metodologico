@@ -78,11 +78,17 @@ if uploaded_file is not None:
                     return col
             return columnas_disponibles[0] if columnas_disponibles else None
 
-        col_rep = st.sidebar.selectbox("Columna de Representante", options=columnas_disponibles, index=columnas_disponibles.index(guess_col(['representante', 'rep', 'asesor', 'ejecutivo'])) if guess_col(['representante', 'rep', 'asesor', 'ejecutivo'])) in columnas_disponibles else 0)
-        col_com = st.sidebar.selectbox("Columna de Comentarios", options=columnas_disponibles, index=columnas_disponibles.index(guess_col(['comentario', 'comentarios', 'observacion'])) if guess_col(['comentario', 'comentarios', 'observacion']) in columnas_disponibles else 0)
-        col_obj = st.sidebar.selectbox("Columna de Objetivos", options=columnas_disponibles, index=columnas_disponibles.index(guess_col(['objetivo', 'objetivos', 'meta'])) if guess_col(['objetivo', 'objetivos', 'meta']) in columnas_disponibles else 0)
+        # Selección segura sin errores de sintaxis
+        def get_index(keywords):
+            match = guess_col(keywords)
+            if match in columnas_disponibles:
+                return columnas_disponibles.index(match)
+            return 0
+
+        col_rep = st.sidebar.selectbox("Columna de Representante", options=columnas_disponibles, index=get_index(['representante', 'rep', 'asesor', 'ejecutivo']))
+        col_com = st.sidebar.selectbox("Columna de Comentarios", options=columnas_disponibles, index=get_index(['comentario', 'comentarios', 'observacion']))
+        col_obj = st.sidebar.selectbox("Columna de Objetivos", options=columnas_disponibles, index=get_index(['objetivo', 'objetivos', 'meta']))
         
-        # Autodetección precisa para Código de Visita
         default_vis_idx = 0
         for i, c in enumerate(columnas_disponibles):
             if 'cod. visita' in c.lower() or 'cod visita' in c.lower() or c.lower() == 'cod. visita':
@@ -90,7 +96,7 @@ if uploaded_file is not None:
                 break
         col_vis = st.sidebar.selectbox("Columna de ID / Código de Visita", options=columnas_disponibles, index=default_vis_idx)
         
-        col_med = st.sidebar.selectbox("Columna de Médico / Cliente", options=columnas_disponibles, index=columnas_disponibles.index(guess_col(['medico', 'médico', 'cliente', 'nombre', 'doctor'])) if guess_col(['medico', 'médico', 'cliente', 'nombre', 'doctor']) in columnas_disponibles else 0)
+        col_med = st.sidebar.selectbox("Columna de Médico / Cliente", options=columnas_disponibles, index=get_index(['medico', 'médico', 'cliente', 'nombre', 'doctor']))
 
         # Procesar visitas únicas estrictamente basadas en el ID de visita seleccionado
         df_unique = df_raw.drop_duplicates(subset=[col_vis]).copy()

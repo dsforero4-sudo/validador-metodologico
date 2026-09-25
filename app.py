@@ -68,38 +68,37 @@ if uploaded_file is not None:
         
         st.sidebar.markdown("---")
         st.sidebar.subheader("2. Mapeo de Columnas")
-        st.sidebar.markdown("<span style='color: #9AA5B1; font-size: 12px;'>Indique qué columna de su archivo corresponde a cada campo de auditoría.</span>", unsafe_allow_html=True)
+        st.sidebar.markdown("<span style='color: #9AA5B1; font-size: 12px;'>Verifique o ajuste las columnas para la auditoría.</span>", unsafe_allow_html=True)
         
         columnas_disponibles = df_raw.columns.tolist()
         
-        # Intentar autodetectar por nombres comunes
         def guess_col(keywords):
             for col in columnas_disponibles:
                 if any(kw in col.lower() for kw in keywords):
                     return col
             return columnas_disponibles[0] if columnas_disponibles else None
 
-        col_rep = st.sidebar.selectbox("Columna de Representante", options=columnas_disponibles, index=columnas_disponibles.index(guess_col(['representante', 'rep', 'asesor', 'ejecutivo'])) if guess_col(['representante', 'rep', 'asesor', 'ejecutivo']) in columnas_disponibles else 0)
-        col_com = st.sidebar.selectbox("Columna de Comentarios", options=columnas_disponibles, index=columnas_disponibles.index(guess_col(['comentario', 'comentarios', 'observacion', 'detalle'])) if guess_col(['comentario', 'comentarios', 'observacion', 'detalle']) in columnas_disponibles else 0)
+        col_rep = st.sidebar.selectbox("Columna de Representante", options=columnas_disponibles, index=columnas_disponibles.index(guess_col(['representante', 'rep', 'asesor', 'ejecutivo'])) if guess_col(['representante', 'rep', 'asesor', 'ejecutivo'])) in columnas_disponibles else 0)
+        col_com = st.sidebar.selectbox("Columna de Comentarios", options=columnas_disponibles, index=columnas_disponibles.index(guess_col(['comentario', 'comentarios', 'observacion'])) if guess_col(['comentario', 'comentarios', 'observacion']) in columnas_disponibles else 0)
         col_obj = st.sidebar.selectbox("Columna de Objetivos", options=columnas_disponibles, index=columnas_disponibles.index(guess_col(['objetivo', 'objetivos', 'meta'])) if guess_col(['objetivo', 'objetivos', 'meta']) in columnas_disponibles else 0)
-        col_vis = st.sidebar.selectbox("Columna de ID / Código de Visita", options=columnas_disponibles, index=columnas_disponibles.index(guess_col(['visita', 'id', 'codigo', 'cod'])) if guess_col(['visita', 'id', 'codigo', 'cod']) in columnas_disponibles else 0)
+        
+        # Autodetección precisa para Código de Visita
+        default_vis_idx = 0
+        for i, c in enumerate(columnas_disponibles):
+            if 'cod. visita' in c.lower() or 'cod visita' in c.lower() or c.lower() == 'cod. visita':
+                default_vis_idx = i
+                break
+        col_vis = st.sidebar.selectbox("Columna de ID / Código de Visita", options=columnas_disponibles, index=default_vis_idx)
+        
         col_med = st.sidebar.selectbox("Columna de Médico / Cliente", options=columnas_disponibles, index=columnas_disponibles.index(guess_col(['medico', 'médico', 'cliente', 'nombre', 'doctor'])) if guess_col(['medico', 'médico', 'cliente', 'nombre', 'doctor']) in columnas_disponibles else 0)
 
-        # Filtro opcional por representante
-        st.sidebar.markdown("---")
-        st.sidebar.subheader("3. Filtros")
-        reps_disponibles = sorted(df_raw[col_rep].dropna().unique())
-        selected_reps = st.sidebar.multiselect("Filtrar por Representante", options=reps_disponibles, default=reps_disponibles)
-        
-        df_filtered = df_raw[df_raw[col_rep].isin(selected_reps)].copy()
-        
-        # Procesar visitas únicas basadas en el ID seleccionado
-        df_unique = df_filtered.drop_duplicates(subset=[col_vis]).copy()
+        # Procesar visitas únicas estrictamente basadas en el ID de visita seleccionado
+        df_unique = df_raw.drop_duplicates(subset=[col_vis]).copy()
 
         # ==========================================
         # SECCIÓN DE AUDITORÍA METODOLÓGICA
         # ==========================================
-        st.subheader("🎓 Auditoría de Calidad Metodológica (Comentarios y Objetivos)")
+        st.subheader("🎓 Auditoría de Calidad Metodológica (Técnica de Ventas)")
         st.markdown("<span style='color: #9AA5B1;'>Evaluación inteligente de la calidad de registro comercial con justificación teórica adaptativa.</span>", unsafe_allow_html=True)
         st.markdown("---")
         
@@ -172,6 +171,8 @@ if uploaded_file is not None:
             Total=(col_vis, 'count')
         )
         
+        reps_unicos = df_audit_tec[col_rep].dropna().unique()
+        
         fig_metodo = px.bar(
             df_rep_metodo, x='Total', y=col_rep, color='Estado_Metodologico', barmode='stack',
             template='plotly_dark', title="<b>Adopción de la Técnica de Ventas por Representante (Visitas Únicas)</b>",
@@ -183,7 +184,7 @@ if uploaded_file is not None:
             orientation='h'
         )
         fig_metodo.update_layout(
-            paper_bgcolor='#1E1E2F', plot_bgcolor='#2D2D44', height=max(450, len(reps_disponibles)*25),
+            paper_bgcolor='#1E1E2F', plot_bgcolor='#2D2D44', height=max(500, len(reps_unicos) * 25),
             xaxis_title="Cantidad de Visitas Únicas", yaxis_title="Representante",
             yaxis={'categoryorder': 'total ascending'},
             legend_title="Nivel Metodológico",

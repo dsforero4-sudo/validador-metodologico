@@ -218,10 +218,10 @@ if uploaded_file is not None:
         st.markdown("<hr class='section-divider'>", unsafe_allow_html=True)
 
         # ==========================================
-        # SECCIÓN 2: RECEPTIVIDAD MÉDICA POR PRODUCTO
+        # SECCIÓN 2: RECEPTIVIDAD MÉDICA POR PRODUCTO (TOTALIDAD)
         # ==========================================
-        st.subheader("💬 2. Receptividad Médica por Producto (Escala Semáforo con %)")
-        st.markdown("<span style='color: #9AA5B1;'>Análisis cruzado del producto con la reacción o actitud registrada, mostrando conteos y porcentajes relativos.</span>", unsafe_allow_html=True)
+        st.subheader("💬 2. Receptividad Médica por Producto (Escala Semáforo con % - Todos los Productos)")
+        st.markdown("<span style='color: #9AA5B1;'>Análisis cruzado del total de productos promocionados con la reacción o actitud registrada.</span>", unsafe_allow_html=True)
         st.markdown("---")
         
         if col_prod and col_reaccion:
@@ -244,7 +244,7 @@ if uploaded_file is not None:
             total_registros_impacto = len(df_actitud_full)
             
             if total_registros_impacto > 0:
-                # Agrupar por Producto y Actitud
+                # Agrupar por Producto y Actitud (Tomando la totalidad de los productos sin recortar)
                 df_prod_actitud = df_actitud_full.groupby(['Producto_Clean', 'Actitud_Clean'], as_index=False).agg(
                     Total_Registros=(col_vis, 'count')
                 )
@@ -256,8 +256,9 @@ if uploaded_file is not None:
                 df_prod_actitud['Porcentaje'] = (df_prod_actitud['Total_Registros'] / df_prod_actitud['Total_Producto'] * 100).round(1)
                 df_prod_actitud['Texto_Barra'] = df_prod_actitud['Total_Registros'].astype(str) + " (" + df_prod_actitud['Porcentaje'].astype(str) + "%)"
                 
-                top_productos_lista = df_actitud_full['Producto_Clean'].value_counts().head(12).index.tolist()
-                df_prod_actitud_filtered = df_prod_actitud[df_prod_actitud['Producto_Clean'].isin(top_productos_lista)]
+                # Obtenemos la lista completa de todos los productos únicos presentes en el archivo
+                todos_productos_lista = df_prod_actitud['Producto_Clean'].unique().tolist()
+                df_prod_actitud_filtered = df_prod_actitud[df_prod_actitud['Producto_Clean'].isin(todos_productos_lista)]
                 
                 semaforo_color_map = {
                     'Aceptación': '#2ECC71',
@@ -268,19 +269,22 @@ if uploaded_file is not None:
                     'Sin reacción': '#E74C3C'
                 }
                 
+                # Altura dinámica basada en la cantidad total de productos para que nunca se amontonen
+                altura_dinamica = max(550, len(todos_productos_lista) * 35)
+                
                 fig_prod_act = px.bar(
                     df_prod_actitud_filtered, x='Total_Registros', y='Producto_Clean', color='Actitud_Clean', barmode='stack',
                     text='Texto_Barra',
-                    template='plotly_dark', title="<b>Receptividad Médica por Producto (Escala Semáforo con Porcentajes)</b>",
+                    template='plotly_dark', title="<b>Receptividad Médica por Producto - Totalidad de Productos (Escala Semáforo con Porcentajes)</b>",
                     color_discrete_map=semaforo_color_map,
                     orientation='h'
                 )
                 fig_prod_act.update_layout(
-                    paper_bgcolor='#1E1E2F', plot_bgcolor='#2D2D44', height=520,
+                    paper_bgcolor='#1E1E2F', plot_bgcolor='#2D2D44', height=altura_dinamica,
                     xaxis_title="Cantidad de Menciones / Registros", yaxis_title="Producto",
                     yaxis={'categoryorder': 'total ascending'},
                     legend_title="Tipo de Reacción (Semáforo)",
-                    margin=dict(t=50, b=50, l=160, r=40)
+                    margin=dict(t=50, b=50, l=180, r=40)
                 )
                 st.plotly_chart(fig_prod_act, use_container_width=True)
             else:

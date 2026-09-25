@@ -5,7 +5,7 @@ import os
 
 # Configuración de página
 st.set_page_config(
-    page_title="AuditMaster | Auditoría Metodológica de Visitas",
+    page_title="AuditMaster | Auditoría Universal de Visitas",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -47,7 +47,7 @@ st.markdown("""
     <div class="ph-header">
         <div>
             <h1 class="ph-title">AuditMaster | Validador Universal de Visitas</h1>
-            <span style="color: #9AA5B1; font-size: 13px;">Auditoría de Calidad Metodológica de Comentarios y Objetivos Comerciales</span>
+            <span style="color: #9AA5B1; font-size: 13px;">Auditoría de Calidad Metodológica y Receptividad Comercial</span>
         </div>
         <div style="text-align: right;">
             <span style="color: #00D26A; font-weight: bold; font-size: 20px;">Sales<span style="color: #FFFFFF;">AUDIT</span></span>
@@ -68,7 +68,7 @@ if uploaded_file is not None:
         
         st.sidebar.markdown("---")
         st.sidebar.subheader("2. Mapeo de Columnas")
-        st.sidebar.markdown("<span style='color: #9AA5B1; font-size: 12px;'>Verifique o ajuste las columnas para la auditoría.</span>", unsafe_allow_html=True)
+        st.sidebar.markdown("<span style='color: #9AA5B1; font-size: 12px;'>Verifique o ajuste las columnas para las auditorías.</span>", unsafe_allow_html=True)
         
         columnas_disponibles = df_raw.columns.tolist()
         
@@ -78,7 +78,6 @@ if uploaded_file is not None:
                     return col
             return columnas_disponibles[0] if columnas_disponibles else None
 
-        # Selección segura sin errores de sintaxis
         def get_index(keywords):
             match = guess_col(keywords)
             if match in columnas_disponibles:
@@ -97,14 +96,20 @@ if uploaded_file is not None:
         col_vis = st.sidebar.selectbox("Columna de ID / Código de Visita", options=columnas_disponibles, index=default_vis_idx)
         
         col_med = st.sidebar.selectbox("Columna de Médico / Cliente", options=columnas_disponibles, index=get_index(['medico', 'médico', 'cliente', 'nombre', 'doctor']))
+        
+        # Mapeos adicionales para Receptividad por Producto
+        st.sidebar.markdown("---")
+        st.sidebar.subheader("3. Mapeo Receptividad (Productos)")
+        col_prod = st.sidebar.selectbox("Columna de Producto / Impacto", options=columnas_disponibles, index=get_index(['impactos', 'producto', 'marca']))
+        col_reaccion = st.sidebar.selectbox("Columna de Reacción / Actitud", options=columnas_disponibles, index=get_index(['comentario de impacto', 'reaccion', 'actitud', 'respuesta']))
 
         # Procesar visitas únicas estrictamente basadas en el ID de visita seleccionado
         df_unique = df_raw.drop_duplicates(subset=[col_vis]).copy()
 
         # ==========================================
-        # SECCIÓN DE AUDITORÍA METODOLÓGICA
+        # SECCIÓN 1: AUDITORÍA DE CALIDAD METODOLÓGICA
         # ==========================================
-        st.subheader("🎓 Auditoría de Calidad Metodológica (Técnica de Ventas)")
+        st.subheader("🎓 1. Auditoría de Calidad Metodológica (Técnica de Ventas - Visitas Únicas)")
         st.markdown("<span style='color: #9AA5B1;'>Evaluación inteligente de la calidad de registro comercial con justificación teórica adaptativa.</span>", unsafe_allow_html=True)
         st.markdown("---")
         
@@ -209,8 +214,79 @@ if uploaded_file is not None:
                 ]],
                 use_container_width=True, hide_index=True
             )
+
+        st.markdown("<hr class='section-divider'>", unsafe_allow_html=True)
+
+        # ==========================================
+        # SECCIÓN 2: RECEPTIVIDAD MÉDICA POR PRODUCTO
+        # ==========================================
+        st.subheader("💬 2. Receptividad Médica por Producto (Escala Semáforo con %)")
+        st.markdown("<span style='color: #9AA5B1;'>Análisis cruzado del producto con la reacción o actitud registrada, mostrando conteos y porcentajes relativos.</span>", unsafe_allow_html=True)
+        st.markdown("---")
+        
+        if col_prod and col_reaccion:
+            df_actitud_full = df_raw.dropna(subset=[col_prod]).copy()
+            df_actitud_full['Producto_Clean'] = df_actitud_full[col_prod].astype(str).str.strip()
             
+            def limpiar_actitud(val):
+                if pd.isna(val):
+                    return 'Sin reacción'
+                s = str(val).strip()
+                if s.lower() in ['', '-', 'nan', 'none', 'nat', '0', 'sin comentario']:
+                    return 'Sin reacción'
+                return s
+
+            df_actitud_full['Actitud_Clean'] = df_actitud_full[col_reaccion].apply(limpiar_actitud)
+            
+            excluidos_prod = ['', '-', 'nan', 'none', 'nat', '0']
+            df_actitud_full = df_actitud_full[~df_actitud_full['Producto_Clean'].str.lower().isin(excluidos_prod)]
+            
+            total_registros_impacto = len(df_actitud_full)
+            
+            if total_registros_impacto > 0:
+                # Agrupar por Producto y Actitud
+                df_prod_actitud = df_actitud_full.groupby(['Producto_Clean', 'Actitud_Clean'], as_index=False).agg(
+                    Total_Registros=(col_vis, 'count')
+                )
+                
+                df_totales_prod = df_prod_actitud.groupby('Producto_Clean', as_index=False).agg(
+                    Total_Producto=('Total_Registros', 'sum')
+                )
+                df_prod_actitud = pd.merge(df_prod_actitud, df_totales_prod, on='Producto_Clean')
+                df_prod_actitud['Porcentaje'] = (df_prod_actitud['Total_Registros'] / df_prod_actitud['Total_Producto'] * 100).round(1)
+                df_prod_actitud['Texto_Barra'] = df_prod_actitud['Total_Registros'].astype(str) + " (" + df_prod_actitud['Porcentaje'].astype(str) + "%)"
+                
+                top_productos_lista = df_actitud_full['Producto_Clean'].value_counts().head(12).index.tolist()
+                df_prod_actitud_filtered = df_prod_actitud[df_prod_actitud['Producto_Clean'].isin(top_productos_lista)]
+                
+                semaforo_color_map = {
+                    'Aceptación': '#2ECC71',
+                    'Escepticismo': '#E67E22',
+                    'Indiferencia por satisfacción con el producto actual': '#F1C40F',
+                    'Indiferencia por no necesario': '#F39C12',
+                    'Evasivo': '#9B59B6',
+                    'Sin reacción': '#E74C3C'
+                }
+                
+                fig_prod_act = px.bar(
+                    df_prod_actitud_filtered, x='Total_Registros', y='Producto_Clean', color='Actitud_Clean', barmode='stack',
+                    text='Texto_Barra',
+                    template='plotly_dark', title="<b>Receptividad Médica por Producto (Escala Semáforo con Porcentajes)</b>",
+                    color_discrete_map=semaforo_color_map,
+                    orientation='h'
+                )
+                fig_prod_act.update_layout(
+                    paper_bgcolor='#1E1E2F', plot_bgcolor='#2D2D44', height=520,
+                    xaxis_title="Cantidad de Menciones / Registros", yaxis_title="Producto",
+                    yaxis={'categoryorder': 'total ascending'},
+                    legend_title="Tipo de Reacción (Semáforo)",
+                    margin=dict(t=50, b=50, l=160, r=40)
+                )
+                st.plotly_chart(fig_prod_act, use_container_width=True)
+            else:
+                st.info("ℹ️ No hay registros suficientes para graficar la receptividad por producto.")
+        
     except Exception as e:
         st.error(f"⚠️ Error al procesar el archivo cargado: {e}")
 else:
-    st.info("👋 **Por favor carga un archivo de visitas en la barra lateral** para iniciar el análisis metodológico.")
+    st.info("👋 **Por favor carga un archivo de visitas en la barra lateral** para iniciar el análisis metodológico y de receptividad.")

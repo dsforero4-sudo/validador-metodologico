@@ -131,17 +131,14 @@ if df_visitas is not None:
     
     df_unique['Comentario_Clean'] = df_unique['Comentario'].fillna('').astype(str).str.strip().str.lower()
     
+    # Conteo seguro mediante merge
     df_counts = df_unique.groupby(['Representante', 'Comentario_Clean'], as_index=False)['Cod. visita'].count()
     df_counts = df_counts.rename(columns={'Cod. visita': 'Rep_Comentario_Count'})
     df_unique = pd.merge(df_unique, df_counts, on=['Representante', 'Comentario_Clean'], how='left')
     
-    def check_repetido_individual(row):
-        com = row['Comentario_Clean']
-        if com in ['', 'nan', 'none', '-']:
-            return False
-        return row['Rep_Comentario_Count'] > 1
-
-    df_unique['Es_Repetido'] = df_unique.apply(check_repetido_individual, axis=1)
+    # Validación vectorizada robusta (sin apply)
+    es_vacio = df_unique['Comentario_Clean'].isin(['', 'nan', 'none', '-'])
+    df_unique['Es_Repetido'] = (~es_vacio) & (df_unique['Rep_Comentario_Count'] > 1)
     
     st.subheader("📋 3. Auditoría de Calidad: Indice de Autorrepeticion por Representante")
     st.markdown("<span style='color: #9AA5B1;'>Evaluacion estricta de cuantas veces cada representante recicla sus propios comentarios entre sus visitas.</span>", unsafe_allow_html=True)

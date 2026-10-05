@@ -56,21 +56,27 @@ st.markdown("""
 st.sidebar.subheader("1. Carga del Archivo")
 uploaded_file = st.sidebar.file_uploader("Cargar Listado de Visitas (.xlsx)", type=["xlsx"], key="visitas_validador")
 
+# Función limpia sin widgets adentro
 @st.cache_data
-def cargar_datos_visitas(file=None):
-    source = file if file is not None else 'listado_visitas_2026-09-07_11-44-08.xlsx'
-    if not os.path.exists('listado_visitas_2026-09-07_11-44-08.xlsx') and file is None:
-        return None
+def cargar_datos_hoja(source, hoja_nombre):
     try:
-        xls = pd.ExcelFile(source)
-        hoja_seleccionada = st.sidebar.selectbox("Seleccione la Hoja del Excel", options=xls.sheet_names, key="select_hoja_excel")
-        df = pd.read_excel(source, sheet_name=hoja_seleccionada)
+        df = pd.read_excel(source, sheet_name=hoja_nombre)
         df.columns = df.columns.astype(str).str.strip()
         return df
     except Exception as e:
         return None
 
-df_visitas = cargar_datos_visitas(uploaded_file)
+df_visitas = None
+source_file = uploaded_file if uploaded_file is not None else ('listado_visitas_2026-09-07_11-44-08.xlsx' if os.path.exists('listado_visitas_2026-09-07_11-44-08.xlsx') else None)
+
+if source_file is not None:
+    try:
+        xls = pd.ExcelFile(source_file)
+        # El widget se coloca fuera del caché, de forma segura
+        hoja_seleccionada = st.sidebar.selectbox("Seleccione la Hoja del Excel", options=xls.sheet_names, key="select_hoja_excel")
+        df_visitas = cargar_datos_hoja(source_file, hoja_seleccionada)
+    except Exception as e:
+        df_visitas = None
 
 if df_visitas is not None:
     st.sidebar.markdown("---")

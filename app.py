@@ -127,15 +127,13 @@ if df_visitas is not None:
     selected_reps = st.sidebar.multiselect("Representante", options=representantes, default=representantes, key="filtro_rep")
     df_filtered = df_f2[df_f2['Representante'].isin(selected_reps)] if representantes else df_f2
     
-    # IMPORTANTE: Reseteamos el índice para evitar índices duplicados al eliminar duplicados
+    # Reseteamos índice para prevenir duplicados
     df_unique = df_filtered.drop_duplicates(subset=['Cod. visita']).copy().reset_index(drop=True)
     
     df_unique['Comentario_Clean'] = df_unique['Comentario'].fillna('').astype(str).str.strip().str.lower()
     
-    # Conteo seguro mediante merge
-    df_counts = df_unique.groupby(['Representante', 'Comentario_Clean'], as_index=False)['Cod. visita'].count()
-    df_counts = df_counts.rename(columns={'Cod. visita': 'Rep_Comentario_Count'})
-    df_unique = pd.merge(df_unique, df_counts, on=['Representante', 'Comentario_Clean'], how='left').reset_index(drop=True)
+    # Conteo ultra seguro mediante transform sobre Series (evita problemas de reindexado y merge)
+    df_unique['Rep_Comentario_Count'] = df_unique.groupby(['Representante', 'Comentario_Clean'])['Cod. visita'].transform('count')
     
     # Validación vectorizada robusta
     es_vacio = df_unique['Comentario_Clean'].isin(['', 'nan', 'none', '-'])
@@ -229,104 +227,4 @@ if df_visitas is not None:
         elif any(w in t_low for w in ['iniciar', 'reiniciar', 'aumentar', 'sostener', 'mantener', 'reemplazar', 'posicionar', 'evaluar', 'prescripción', 'uso']):
             return '🟢 Alta Calidad (Comportamental SMART)', 'El objetivo está formulado correctamente como un comportamiento prescriptivo.'
         else:
-            return '🟡 Regular (Objetivo Poco Específico)', 'El objetivo menciona una intención pero carece de la precisión requerida.'
-
-    res_com = [calificar_y_justificar_comentario_flexible(row['Com_Text'], row['Es_Repetido']) for _, row in df_audit_tec.iterrows()]
-    df_audit_tec['Calidad_Comentario'] = [r[0] for r in res_com]
-    df_audit_tec['Justificacion_Comentario'] = [r[1] for r in res_com]
-
-    res_obj = df_audit_tec['Obj_Text'].apply(calificar_y_justificar_objetivo)
-    df_audit_tec['Calidad_Objetivo'] = [r[0] for r in res_obj]
-    df_audit_tec['Justificacion_Objetivo'] = [r[1] for r in res_obj]
-    
-    def calificacion_global(row):
-        c = row['Calidad_Comentario']
-        o = row['Calidad_Objetivo']
-        if 'Alerta' in c or 'Alerta' in o:
-            return '🔴 Riesgo Metodológico (Alerta)'
-        elif 'Regular' in c or 'Regular' in o:
-            return '🟡 En Proceso de Apropiación'
-        else:
-            return '🟢 Visita Sobresaliente (Metodología Dominada)'
-
-    df_audit_tec['Estado_Metodologico'] = df_audit_tec.apply(calificacion_global, axis=1)
-    
-    total_v_audit = len(df_audit_tec)
-    sobresalientes = len(df_audit_tec[df_audit_tec['Estado_Metodologico'] == '🟢 Visita Sobresaliente (Metodología Dominada)'])
-    alertas = len(df_audit_tec[df_audit_tec['Estado_Metodologico'] == '🔴 Riesgo Metodológico (Alerta)'])
-    
-    m1, m2, m3 = st.columns(3)
-    m1.metric("Visitas Unicas Evaluadas (Tecnica)", f"{total_v_audit:,}")
-    m2.metric("Visitas Metodologicamente Sobresalientes", f"{sobresalientes:,}", f"{(sobresalientes/total_v_audit*100):.1f}%")
-    m3.metric("Visitas en Alerta (Riesgo)", f"{alertas:,}", f"{(alertas/total_v_audit*100):.1f}%", delta_color="inverse")
-    
-    st.markdown("---")
-    
-    df_rep_metodo = df_audit_tec.groupby(['Representante', 'Estado_Metodologico'], as_index=False).agg(
-        Total=('Cod. visita', 'count')
-    )
-    df_rep_totales = df_rep_metodo.groupby('Representante', as_index=False).agg(Total_Rep=('Total', 'sum'))
-    df_rep_metodo = pd.merge(df_rep_metodo, df_rep_totales, on='Representante')
-    df_rep_metodo['Porcentaje'] = (df_rep_metodo['Total'] / df_rep_metodo['Total_Rep']) * 100
-    df_rep_metodo['Porcentaje'] = df_rep_metodo['Porcentaje'].round(1)
-    
-    def formato_etiqueta(row):
-        if row['Porcentaje'] >= 5.0:
-            return f"{row['Total']} ({row['Porcentaje']}%)"
-        return ""
-
-    df_rep_metodo['Texto_Barra'] = df_rep_metodo.apply(formato_etiqueta, axis=1)
-    
-    fig_metodo = px.bar(
-        df_rep_metodo, x='Total', y='Representante', color='Estado_Metodologico', barmode='stack',
-        text='Texto_Barra',
-        template='plotly_dark', title="<b>Adopcion de la Tecnica de Ventas por Representante (Penalizacion Estricta por Copia)</b>",
-        color_discrete_map={
-            '🟢 Visita Sobresaliente (Metodología Dominada)': '#2ECC71',
-            '🟡 En Proceso de Apropiación': '#F39C12',
-            '🔴 Riesgo Metodológico (Alerta)': '#E74C3C'
-        },
-        orientation='h'
-    )
-    fig_metodo.update_traces(textposition='inside', insidetextanchor='middle', textfont_size=11)
-    fig_metodo.update_layout(
-        paper_bgcolor='#1C202C', plot_bgcolor='#2D3346', height=max(450, len(representantes)*25),
-        xaxis_title="Cantidad de Visitas Unicas", yaxis_title="Representante",
-        yaxis={'categoryorder': 'total ascending'},
-        legend_title="Nivel Metodologico",
-        margin=dict(t=50, b=50, l=150, r=40)
-    )
-    st.plotly_chart(fig_metodo, use_container_width=True)
-    
-    with st.expander("🔍 Ver detalle completo de auditoría (por Visita Única) con filtros de calidad y representante"):
-        st.markdown("<span style='color: #9AA5B1; font-size: 13px;'>Filtra el detalle de visitas únicas según el nivel metodológico o el representante de interés.</span>", unsafe_allow_html=True)
-        
-        col_f_niv, col_f_rep = st.columns(2)
-        niveles_disponibles = ['Todos'] + sorted(df_audit_tec['Estado_Metodologico'].unique().tolist())
-        with col_f_niv:
-            filtro_nivel_sel = st.selectbox("Filtrar por Nivel Metodológico", options=niveles_disponibles, key="select_filtro_nivel")
-            
-        reps_disponibles_audit = ['Todos'] + sorted(df_audit_tec['Representante'].dropna().unique().tolist())
-        with col_f_rep:
-            filtro_rep_sel = st.selectbox("Filtrar por Representante", options=reps_disponibles_audit, key="select_filtro_rep_audit")
-            
-        df_tabla_filtrada = df_audit_tec.copy()
-        if filtro_nivel_sel != 'Todos':
-            df_tabla_filtrada = df_tabla_filtrada[df_tabla_filtrada['Estado_Metodologico'] == filtro_nivel_sel]
-        if filtro_rep_sel != 'Todos':
-            df_tabla_filtrada = df_tabla_filtrada[df_tabla_filtrada['Representante'] == filtro_rep_sel]
-            
-        st.markdown(f"<span style='color: #00D26A; font-size: 13px;'>Mostrando {len(df_tabla_filtrada):,} registros filtrados.</span>", unsafe_allow_html=True)
-        
-        st.dataframe(
-            df_tabla_filtrada[[
-                'Representante', 'Cod. visita', 'Fecha visita', 'Médicos', 
-                'Comentario', 'Calidad_Comentario', 'Justificacion_Comentario', 
-                'Objetivo', 'Calidad_Objetivo', 'Justificacion_Objetivo', 
-                'Estado_Metodologico'
-            ]],
-            use_container_width=True, hide_index=True
-        )
-
-else:
-    st.info("👋 **Por favor carga el archivo de visitas** en la barra lateral para visualizar el validador metodológico universal.")
+            return '🟡 Regular (Objetivo Poco Específico)', 'El objetivo

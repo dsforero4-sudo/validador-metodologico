@@ -127,19 +127,16 @@ if df_visitas is not None:
     selected_reps = st.sidebar.multiselect("Representante", options=representantes, default=representantes, key="filtro_rep")
     df_filtered = df_f2[df_f2['Representante'].isin(selected_reps)] if representantes else df_f2
     
-    # Reseteamos índice para prevenir duplicados
     df_unique = df_filtered.drop_duplicates(subset=['Cod. visita']).copy().reset_index(drop=True)
     
     df_unique['Comentario_Clean'] = df_unique['Comentario'].fillna('').astype(str).str.strip().str.lower()
     
-    # Conteo ultra seguro mediante transform sobre Series (evita problemas de reindexado y merge)
     df_unique['Rep_Comentario_Count'] = df_unique.groupby(['Representante', 'Comentario_Clean'])['Cod. visita'].transform('count')
     
-    # Validación vectorizada robusta
     es_vacio = df_unique['Comentario_Clean'].isin(['', 'nan', 'none', '-'])
     df_unique['Es_Repetido'] = (~es_vacio) & (df_unique['Rep_Comentario_Count'] > 1)
     
-    st.subheader("📋 3. Auditoría de Calidad: Indice de Autorrepeticion por Representante")
+    st.subheader("3. Auditoria de Calidad: Indice de Autorrepeticion por Representante")
     st.markdown("<span style='color: #9AA5B1;'>Evaluacion estricta de cuantas veces cada representante recicla sus propios comentarios entre sus visitas.</span>", unsafe_allow_html=True)
     st.markdown("---")
     
@@ -187,7 +184,7 @@ if df_visitas is not None:
 
     st.markdown("<hr class='section-divider'>", unsafe_allow_html=True)
 
-    st.subheader("🎓 4. Auditoría de Calidad Metodológica (Técnica de Ventas - Visitas Unicas)")
+    st.subheader("4. Auditoria de Calidad Metodologica (Tecnica de Ventas - Visitas Unicas)")
     st.markdown("<span style='color: #9AA5B1;'>Evaluacion inteligente de la Fase 2 (Comentarios) y Fase 1/3 (Objetivos) con penalizacion automatica a Alerta ante registros con copy-paste.</span>", unsafe_allow_html=True)
     st.markdown("---")
     
@@ -201,30 +198,7 @@ if df_visitas is not None:
     def calificar_y_justificar_comentario_flexible(txt, es_rep):
         t_low = txt.lower()
         if t_low in palabras_prohibidas_com or len(txt) < 8:
-            return '🔴 Alerta: Vacío o Genérico', 'El comentario está vacío o usa expresiones genéricas ("bien", "ok", "sin novedad").'
+            return '[Alerta] Vacio o Generico', 'El comentario esta vacio o usa expresiones genericas ("bien", "ok", "sin novedad").'
         
         if es_rep:
-            return '🔴 Alerta: Penalizado por Copy-Paste (Clonación)', 'El texto contiene elementos teóricos correctos, pero al estar repetido idénticamente en múltiples visitas, se invalida por falta de exploración individual genuina.'
-        
-        palabras_alta_calidad = [
-            'acepta', 'indiferente', 'objeción', 'objecion', 'escepticismo', 'evasivo', 'acuerdo', 
-            'compromiso', 'diferencia', 'valor', 'claro', 'dudas', 'explica', 'explicó', 'habla', 'habló', 
-            'revisa', 'revisó', 'conoce', 'conoció', 'prescribe', 'prescribirá'
-        ]
-        if any(w in t_low for w in palabras_alta_calidad):
-            return '🟢 Alta Calidad (Técnica Aplicada)', 'El comentario evidencia de forma sólida la Fase 2 y es un registro único y personalizado.'
-        else:
-            return '🟡 Regular (Superficial / Sin Actitud Clara)', 'El texto relata la visita pero carece de profundidad y argumentación diferencial.'
-
-    palabras_actividades = ['entregar', 'visitar', 'saludar', 'llamar', 'dejar', 'muestra', 'material', 'obsequio']
-    
-    def calificar_y_justificar_objetivo(txt):
-        t_low = txt.lower()
-        if t_low in palabras_prohibidas_com or len(txt) < 8:
-            return '🔴 Alerta: Sin Objetivo Definido', 'El campo de objetivo está vacío o no especifica el comportamiento esperado.'
-        elif any(t_low.startswith(act) for act in palabras_actividades):
-            return '🔴 Alerta: Confunde Actividad con Objetivo', 'Describe una tarea logística en lugar de definir un comportamiento clínico SMART.'
-        elif any(w in t_low for w in ['iniciar', 'reiniciar', 'aumentar', 'sostener', 'mantener', 'reemplazar', 'posicionar', 'evaluar', 'prescripción', 'uso']):
-            return '🟢 Alta Calidad (Comportamental SMART)', 'El objetivo está formulado correctamente como un comportamiento prescriptivo.'
-        else:
-            return '🟡 Regular (Objetivo Poco Específico)', 'El objetivo
+            return '[Alerta] Penalizado por Copy-Paste (Clonacion)', 'El texto contiene elementos teoricos correctos, pero al estar repetido identicamente en multiples visitas, se invalida por falta de explor

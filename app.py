@@ -160,18 +160,4 @@ if df_visitas is not None:
         Comentarios_Repetidos=('Es_Repetido', lambda x: int(x.sum()))
     ).reset_index()
     
-    rep_copia['Pct_Copia'] = (rep_copia['Comentarios_Repetidos'] / rep_copia['Total_Visitas'] * 100).round(1)
-    rep_copia = rep_copia.sort_values(by='Pct_Copia', ascending=True)
-    
-    altura_grafico = max(450, len(rep_copia) * 25)
-    
-    fig_bar_copia = px.bar(
-        rep_copia, x='Pct_Copia', y='Representante', text='Pct_Copia',
-        template='plotly_dark', title="<b>Índice de Autorrepetición (%) por Representante (Copy-Paste Interno)</b>",
-        color='Pct_Copia', color_continuous_scale=[[0.0, '#2ECC71'], [0.05, '#2ECC71'], [0.30, '#F39C12'], [0.31, '#E74C3C'], [1.0, '#C0392B']],
-        range_color=[0, 100],
-        orientation='h'
-    )
-    fig_bar_copia.update_traces(texttemplate='%{text}%', textposition='outside', textfont_size=11)
-    fig_bar_copia.update_layout(
-        paper_bgcolor='#1C202C', plot_bgcolor
+    rep_copia['Pct_Copia'] = (rep_copia['Comentarios_Repetidos'] / rep_copia['Total_Visitas'] * 1

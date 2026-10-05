@@ -127,16 +127,17 @@ if df_visitas is not None:
     selected_reps = st.sidebar.multiselect("Representante", options=representantes, default=representantes, key="filtro_rep")
     df_filtered = df_f2[df_f2['Representante'].isin(selected_reps)] if representantes else df_f2
     
-    df_unique = df_filtered.drop_duplicates(subset=['Cod. visita']).copy()
+    # IMPORTANTE: Reseteamos el índice para evitar índices duplicados al eliminar duplicados
+    df_unique = df_filtered.drop_duplicates(subset=['Cod. visita']).copy().reset_index(drop=True)
     
     df_unique['Comentario_Clean'] = df_unique['Comentario'].fillna('').astype(str).str.strip().str.lower()
     
     # Conteo seguro mediante merge
     df_counts = df_unique.groupby(['Representante', 'Comentario_Clean'], as_index=False)['Cod. visita'].count()
     df_counts = df_counts.rename(columns={'Cod. visita': 'Rep_Comentario_Count'})
-    df_unique = pd.merge(df_unique, df_counts, on=['Representante', 'Comentario_Clean'], how='left')
+    df_unique = pd.merge(df_unique, df_counts, on=['Representante', 'Comentario_Clean'], how='left').reset_index(drop=True)
     
-    # Validación vectorizada robusta (sin apply)
+    # Validación vectorizada robusta
     es_vacio = df_unique['Comentario_Clean'].isin(['', 'nan', 'none', '-'])
     df_unique['Es_Repetido'] = (~es_vacio) & (df_unique['Rep_Comentario_Count'] > 1)
     

@@ -56,7 +56,6 @@ st.markdown("""
 st.sidebar.subheader("1. Carga del Archivo")
 uploaded_file = st.sidebar.file_uploader("Cargar Listado de Visitas (.xlsx)", type=["xlsx"], key="visitas_validador")
 
-# Función limpia sin widgets adentro
 @st.cache_data
 def cargar_datos_hoja(source, hoja_nombre):
     try:
@@ -101,7 +100,6 @@ if df_raw is not None:
     map_obj = st.sidebar.selectbox("Columna: Objetivo", options=col_nombres, index=buscar_defecto(col_nombres, ['objetivo', 'propósito', 'meta']), key="map_obj")
     map_com = st.sidebar.selectbox("Columna: Comentario", options=col_nombres, index=buscar_defecto(col_nombres, ['comentario', 'observación', 'observacion', 'detalle', 'feedback']), key="map_com")
 
-    # Estandarizamos el DataFrame dinámicamente
     df_visitas = df_raw.rename(columns={
         map_rep: 'Representante',
         map_reg: 'Región',
@@ -142,9 +140,6 @@ if df_visitas is not None:
 
     df_unique['Es_Repetido'] = df_unique.apply(check_repetido_individual, axis=1)
     
-    # ==========================================
-    # GRÁFICA 3: ÍNDICE DE COPIADO POR REPRESENTANTE
-    # ==========================================
     st.subheader("📋 3. Auditoría de Calidad: Índice de Autorrepetición por Representante")
     st.markdown("<span style='color: #9AA5B1;'>Evaluación estricta de cuántas veces cada representante recicla sus propios comentarios entre sus visitas.</span>", unsafe_allow_html=True)
     st.markdown("---")
@@ -179,56 +174,4 @@ if df_visitas is not None:
     )
     fig_bar_copia.update_traces(texttemplate='%{text}%', textposition='outside', textfont_size=11)
     fig_bar_copia.update_layout(
-        paper_bgcolor='#1C202C', plot_bgcolor='#2D3346', height=altura_grafico,
-        xaxis_title="Índice de Autorrepetición (%)", yaxis_title="Representante",
-        xaxis=dict(range=[0, 115]),
-        yaxis={'categoryorder': 'total ascending'},
-        margin=dict(t=50, b=50, l=150, r=20)
-    )
-    st.plotly_chart(fig_bar_copia, use_container_width=True)
-    
-    with st.expander("Ver listado de visitas únicas con comentarios repetidos"):
-        st.dataframe(df_unique[df_unique['Es_Repetido'] == True][['Región', 'Representante', 'Fecha visita', 'Médicos', 'Comentario']].head(50), use_container_width=True, hide_index=True)
-
-    st.markdown("<hr class='section-divider'>", unsafe_allow_html=True)
-
-    # ==========================================
-    # GRÁFICA 4: AUDITORÍA DE CALIDAD METODOLÓGICA
-    # ==========================================
-    st.subheader("🎓 4. Auditoría de Calidad Metodológica (Técnica de Ventas Pharmadvisor - Visitas Únicas)")
-    st.markdown("<span style='color: #9AA5B1;'>Evaluación inteligente de la Fase 2 (Comentarios) y Fase 1/3 (Objetivos) con penalización automática a Alerta ante registros con copy-paste.</span>", unsafe_allow_html=True)
-    st.markdown("---")
-    
-    df_audit_tec = df_unique.copy()
-    
-    df_audit_tec['Com_Text'] = df_audit_tec['Comentario'].fillna('').astype(str).str.strip()
-    df_audit_tec['Obj_Text'] = df_audit_tec['Objetivo'].fillna('').astype(str).str.strip()
-    
-    palabras_prohibidas_com = ['', '-', 'nan', 'none', 'nat', '0', 'ok', 'bien', 'excelente', 'sin novedad', 'atendió bien']
-    
-    def calificar_y_justificar_comentario_flexible(txt, es_rep):
-        t_low = txt.lower()
-        if t_low in palabras_prohibidas_com or len(txt) < 8:
-            return '🔴 Alerta: Vacío o Genérico', 'El comentario está vacío o usa expresiones genéricas ("bien", "ok", "sin novedad").'
-        
-        if es_rep:
-            return '🔴 Alerta: Penalizado por Copy-Paste (Clonación)', 'El texto contiene elementos teóricos correctos, pero al estar repetido idénticamente en múltiples visitas, se invalida por falta de exploración individual genuina.'
-        
-        palabras_alta_calidad = [
-            'acepta', 'indiferente', 'objeción', 'objecion', 'escepticismo', 'evasivo', 'acuerdo', 
-            'compromiso', 'diferencia', 'valor', 'claro', 'dudas', 'explica', 'explicó', 'habla', 'habló', 
-            'revisa', 'revisó', 'conoce', 'conoció', 'prescribe', 'prescribirá'
-        ]
-        if any(w in t_low for w in palabras_alta_calidad):
-            return '🟢 Alta Calidad (Técnica Aplicada)', 'El comentario evidencia de forma sólida la Fase 2 y es un registro único y personalizado.'
-        else:
-            return '🟡 Regular (Superficial / Sin Actitud Clara)', 'El texto relata la visita pero carece de profundidad y argumentación diferencial.'
-
-    palabras_actividades = ['entregar', 'visitar', 'saludar', 'llamar', 'dejar', 'muestra', 'material', 'obsequio']
-    
-    def calificar_y_justificar_objetivo(txt):
-        t_low = txt.lower()
-        if t_low in palabras_prohibidas_com or len(txt) < 8:
-            return '🔴 Alerta: Sin Objetivo Definido', 'El campo de objetivo está vacío o no especifica el comportamiento esperado.'
-        elif any(t_low.startswith(act) for act in palabras_actividades):
-            return '🔴 Alerta: Confunde Actividad con Objetivo', 'Describe una tarea
+        paper_bgcolor='#1C202C', plot_bgcolor

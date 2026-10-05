@@ -318,4 +318,17 @@ if df_visitas is not None:
         if filtro_rep_sel != 'Todos':
             df_tabla_filtrada = df_tabla_filtrada[df_tabla_filtrada['Representante'] == filtro_rep_sel]
             
-        st.markdown(f"<span style='color: #00D26A
+        st.markdown(f"<span style='color: #00D26A; font-size: 13px;'>Mostrando {len(df_tabla_filtrada):,} registros filtrados.</span>", unsafe_allow_html=True)
+        
+        st.dataframe(
+            df_tabla_filtrada[[
+                'Representante', 'Cod. visita', 'Fecha visita', 'Médicos', 
+                'Comentario', 'Calidad_Comentario', 'Justificacion_Comentario', 
+                'Objetivo', 'Calidad_Objetivo', 'Justificacion_Objetivo', 
+                'Estado_Metodologico'
+            ]],
+            use_container_width=True, hide_index=True
+        )
+
+else:
+    st.info("👋 **Por favor carga el archivo de visitas** en la barra lateral para visualizar el validador metodológico universal.")

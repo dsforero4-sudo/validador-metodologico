@@ -3,6 +3,7 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 import os
+from io import BytesIO
 
 st.set_page_config(
     page_title="Pharmadvisor | Validador Metodológico",
@@ -300,6 +301,92 @@ if df_visitas is not None:
                 ]],
                 use_container_width=True, hide_index=True
             )
+
+        # ==========================================
+        # MÓDULO DE REPORTE EJECUTIVO EN PDF
+        # ==========================================
+        st.markdown("<hr class='section-divider'>", unsafe_allow_html=True)
+        st.subheader("📄 Generación de Reporte Ejecutivo para Gerencia")
+        st.markdown("<span style='color: #9AA5B1;'>Genera un informe analítico en formato texto/HTML estructurado para revisión gerencial y distrital.</span>", unsafe_allow_html=True)
+        
+        if st.button("Generar Informe Ejecutivo para Gerentes"):
+            # Análisis gerencial automatizado
+            pct_alertas = (alertas / total_v_audit * 100) if total_v_audit > 0 else 0
+            pct_sobresalientes = (sobresalientes / total_v_audit * 100) if total_v_audit > 0 else 0
+            
+            # Representantes críticos (mayor tasa de alerta o copia)
+            rep_resumen = df_audit_tec.groupby('Representante').agg(
+                Visitas=('Cod. visita', 'count'),
+                Alertas=('Estado_Metodologico', lambda x: (x == '🔴 Riesgo Metodológico (Alerta)').sum()),
+                Copia=('Es_Repetido', 'sum')
+            ).reset_index()
+            rep_resumen['Pct_Riesgo'] = (rep_resumen['Alertas'] / rep_resumen['Visitas'] * 100).round(1)
+            criticos = rep_resumen.sort_values(by='Pct_Riesgo', ascending=False).head(3)
+            
+            reporte_html = f"""
+            <html>
+            <head>
+                <style>
+                    body {{ font-family: Arial, sans-serif; color: #333; margin: 40px; }}
+                    h1 {{ color: #E6007E; border-bottom: 2px solid #E6007E; padding-bottom: 10px; }}
+                    h2 {{ color: #2D3346; margin-top: 30px; }}
+                    .metric-box {{ background: #f4f4f4; padding: 15px; border-radius: 5px; margin-bottom: 15px; }}
+                    table {{ width: 100%; border-collapse: collapse; margin-top: 15px; }}
+                    th, td {{ border: 1px solid #ddd; padding: 8px; text-align: left; font-size: 12px; }}
+                    th {{ background-color: #2D3346; color: white; }}
+                </style>
+            </head>
+            <body>
+                <h1>PHARMADVISOR - INFORME EJECUTIVO DE AUDITORÍA METODOLÓGICA</h1>
+                <p><b>Fecha de Emisión:</b> {pd.Timestamp.now().strftime('%Y-%m-%d %H:%M')}</p>
+                <p><b>Alcance:</b> Evaluación de registros de visitas a médicos y farmacias (Filtros activos aplicados).</p>
+                
+                <h2>1. Resumen Ejecutivo del Ciclo</h2>
+                <div class="metric-box">
+                    <ul>
+                        <li><b>Visitas Únicas Evaluadas:</b> {total_v_audit:,}</li>
+                        <li><b>Índice Global de Autorrepetición (Copy-Paste):</b> {pct_copia:.1f}%</li>
+                        <li><b>Visitas Metodológicamente Sobresalientes:</b> {sobresalientes:,} ({pct_sobresalientes:.1f}%)</li>
+                        <li><b>Visitas en Alerta / Riesgo Metodológico:</b> {alertas:,} ({pct_alertas:.1f}%)</li>
+                    </ul>
+                </div>
+                
+                <h2>2. Hallazgos Estratégicos para Gerentes de Distrito y Línea</h2>
+                <p>El análisis de los registros evidencia una brecha importante en la profundidad de exploración (Fase 2) y en la formulación de objetivos comerciales (Fase 1 y 3). Aquellos asesores con altos índices de clonación de comentarios reflejan menor capacidad de argumentación frente a objeciones reales de médicos y farmacias.</p>
+                
+                <h2>3. Representantes con Mayor Oportunidad de Acompañamiento (Coaching)</h2>
+                <table>
+                    <tr>
+                        <th>Representante</th>
+                        <th>Visitas Evaluadas</th>
+                        <th>Registros en Alerta</th>
+                        <th>% de Riesgo Metodológico</th>
+                    </tr>
+            """
+            for _, r in criticos.iterrows():
+                reporte_html += f"<tr><td>{r['Representante']}</td><td>{r['Visitas']}</td><td>{r['Alertas']}</td><td>{r['Pct_Riesgo']}%</td></tr>"
+            
+            reporte_html += """
+                </table>
+                
+                <h2>4. Recomendaciones de Acción Gerencial</h2>
+                <ol>
+                    <li><b>Sesiones 1 a 1 de Retroalimentación:</b> Enfocar el coaching con los asesores identificados en el uso de argumentos diferenciales por cliente en lugar de plantillas estándar.</li>
+                    <li><b>Validación de Objetivos en Planificación de Ciclo:</b> Reforzar que los objetivos registrados sigan un criterio comportamental (SMART) y eviten confundir tareas logísticas (como entregar muestras) con metas clínicas.</li>
+                    <li><b>Seguimiento Continuo:</b> Utilizar este tablero de validación al cierre de cada semana para corregir desvíos antes de la consolidación final del ciclo.</li>
+                </ol>
+            </body>
+            </html>
+            """
+            
+            st.success("¡Informe generado con éxito!")
+            st.download_button(
+                label="📥 Descargar Informe Ejecutivo (HTML / Compatible con Impresión a PDF)",
+                data=reporte_html,
+                file_name=f"Informe_Ejecutivo_Pharmadvisor_{pd.Timestamp.now().strftime('%Y%m%d')}.html",
+                mime="text/html"
+            )
+            st.info("💡 **Nota:** Puedes abrir el archivo descargado en cualquier navegador y presionar `Ctrl + P` (o `Cmd + P` en Mac) seleccionando 'Guardar como PDF' para obtener un documento impreso de calidad ejecutiva.")
     else:
         st.warning("⚠️ No se pudieron localizar las columnas 'Comentario' y/o 'Objetivo' en el archivo cargado.")
 

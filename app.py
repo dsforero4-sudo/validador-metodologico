@@ -168,4 +168,110 @@ if df_visitas is not None:
     st.markdown("---")
     
     if 'Comentario' in df_filtered.columns and 'Objetivo' in df_filtered.columns:
-        df_audit_tec = df_unique.copy
+        df_audit_tec = df_unique.copy()
+        
+        df_audit_tec['Com_Text'] = df_audit_tec['Comentario'].fillna('').astype(str).str.strip()
+        df_audit_tec['Obj_Text'] = df_audit_tec['Objetivo'].fillna('').astype(str).str.strip()
+        
+        palabras_prohibidas_com = ['', '-', 'nan', 'none', 'nat', '0', 'ok', 'bien', 'excelente', 'sin novedad', 'atendió bien']
+        
+        def calificar_y_justificar_comentario_flexible(txt, es_rep):
+            t_low = txt.lower()
+            if t_low in palabras_prohibidas_com or len(txt) < 8:
+                return '🔴 Alerta: Vacío o Genérico', 'El comentario está vacío o usa expresiones genéricas ("bien", "ok", "sin novedad").'
+            
+            if es_rep:
+                return '🔴 Alerta: Penalizado por Copy-Paste (Clonación)', 'El texto contiene elementos teóricos correctos, pero al estar repetido idénticamente en múltiples visitas, se invalida por falta de exploración individual genuina.'
+            
+            palabras_alta_calidad = [
+                'acepta', 'indiferente', 'objeción', 'objecion', 'escepticismo', 'evasivo', 'acuerdo', 
+                'compromiso', 'diferencia', 'valor', 'claro', 'dudas', 'explica', 'explicó', 'habla', 'habló', 
+                'revisa', 'revisó', 'conoce', 'conoció', 'prescribe', 'prescribirá'
+            ]
+            if any(w in t_low for w in palabras_alta_calidad):
+                return '🟢 Alta Calidad (Técnica Aplicada)', 'El comentario evidencia de forma sólida la Fase 2 y es un registro único y personalizado.'
+            else:
+                return '🟡 Regular (Superficial / Sin Actitud Clara)', 'El texto relata la visita pero carece de profundidad y argumentación diferencial.'
+
+        palabras_actividades = ['entregar', 'visitar', 'saludar', 'llamar', 'dejar', 'muestra', 'material', 'obsequio']
+        
+        def calificar_y_justificar_objetivo(txt):
+            t_low = txt.lower()
+            if t_low in palabras_prohibidas_com or len(txt) < 8:
+                return '🔴 Alerta: Sin Objetivo Definido', 'El campo de objetivo está vacío o no especifica el comportamiento esperado.'
+            elif any(t_low.startswith(act) for act in palabras_actividades):
+                return '🔴 Alerta: Confunde Actividad con Objetivo', 'Describe una tarea logística en lugar de definir un comportamiento clínico SMART.'
+            elif any(w in t_low for w in ['iniciar', 'reiniciar', 'aumentar', 'sostener', 'mantener', 'reemplazar', 'posicionar', 'evaluar', 'prescripción', 'uso']):
+                return '🟢 Alta Calidad (Comportamental SMART)', 'El objetivo está formulado correctamente como un comportamiento prescriptivo.'
+            else:
+                return '🟡 Regular (Objetivo Poco Específico)', 'El objetivo menciona una intención pero carece de la precisión requerida.'
+
+        res_com = [calificar_y_justificar_comentario_flexible(row['Com_Text'], row['Es_Repetido']) for _, row in df_audit_tec.iterrows()]
+        df_audit_tec['Calidad_Comentario'] = [r[0] for r in res_com]
+        df_audit_tec['Justificacion_Comentario'] = [r[1] for r in res_com]
+
+        res_obj = df_audit_tec['Obj_Text'].apply(calificar_y_justificar_objetivo)
+        df_audit_tec['Calidad_Objetivo'] = [r[0] for r in res_obj]
+        df_audit_tec['Justificacion_Objetivo'] = [r[1] for r in res_obj]
+        
+        def calificacion_global(row):
+            c = row['Calidad_Comentario']
+            o = row['Calidad_Objetivo']
+            if 'Alerta' in c or 'Alerta' in o:
+                return '🔴 Riesgo Metodológico (Alerta)'
+            elif 'Regular' in c or 'Regular' in o:
+                return '🟡 En Proceso de Apropiación'
+            else:
+                return '🟢 Visita Sobresaliente (Metodología Dominada)'
+
+        df_audit_tec['Estado_Metodologico'] = df_audit_tec.apply(calificacion_global, axis=1)
+        
+        total_v_audit = len(df_audit_tec)
+        sobresalientes = len(df_audit_tec[df_audit_tec['Estado_Metodologico'] == '🟢 Visita Sobresaliente (Metodología Dominada)'])
+        alertas = len(df_audit_tec[df_audit_tec['Estado_Metodologico'] == '🔴 Riesgo Metodológico (Alerta)'])
+        
+        m1, m2, m3 = st.columns(3)
+        m1.metric("Visitas Únicas Evaluadas (Técnica)", f"{total_v_audit:,}")
+        m2.metric("Visitas Metodológicamente Sobresalientes", f"{sobresalientes:,}", f"{(sobresalientes/total_v_audit*100):.1f}%")
+        m3.metric("Visitas en Alerta (Riesgo)", f"{alertas:,}", f"{(alertas/total_v_audit*100):.1f}%", delta_color="inverse")
+        
+        st.markdown("---")
+        
+        df_rep_metodo = df_audit_tec.groupby(['Representante', 'Estado_Metodologico'], as_index=False).agg(
+            Total=('Cod. visita', 'count')
+        )
+        df_rep_totales = df_rep_metodo.groupby('Representante', as_index=False).agg(Total_Rep=('Total', 'sum'))
+        df_rep_metodo = pd.merge(df_rep_metodo, df_rep_totales, on='Representante')
+        df_rep_metodo['Porcentaje'] = (df_rep_metodo['Total'] / df_rep_metodo['Total_Rep'] * 100).round(1)
+        
+        def formato_etiqueta(row):
+            if row['Porcentaje'] >= 5.0:
+                return f"{row['Total']} ({row['Porcentaje']}%)"
+            return ""
+
+        df_rep_metodo['Texto_Barra'] = df_rep_metodo.apply(formato_etiqueta, axis=1)
+        
+        fig_metodo = px.bar(
+            df_rep_metodo, x='Total', y='Representante', color='Estado_Metodologico', barmode='stack',
+            text='Texto_Barra',
+            template='plotly_dark', title="<b>Adopción de la Técnica de Ventas por Representante (Penalización Estricta por Copia)</b>",
+            color_discrete_map={
+                '🟢 Visita Sobresaliente (Metodología Dominada)': '#2ECC71',
+                '🟡 En Proceso de Apropiación': '#F39C12',
+                '🔴 Riesgo Metodológico (Alerta)': '#E74C3C'
+            },
+            orientation='h'
+        )
+        fig_metodo.update_traces(textposition='inside', insidetextanchor='middle', textfont_size=11)
+        fig_metodo.update_layout(
+            paper_bgcolor='#1C202C', plot_bgcolor='#2D3346', height=max(450, len(representantes)*25),
+            xaxis_title="Cantidad de Visitas Únicas", yaxis_title="Representante",
+            yaxis={'categoryorder': 'total ascending'},
+            legend_title="Nivel Metodológico",
+            margin=dict(t=50, b=50, l=150, r=40)
+        )
+        # Renderizado de la gráfica de técnica de ventas en Streamlit
+        st.plotly_chart(fig_metodo, use_container_width=True)
+        
+        with st.expander("🔍 Ver detalle completo de auditoría (por Visita Única) con filtros de calidad y representante"):
+            st.markdown("<span style='color: #9AA5B1; font-size: 13px;'>Filt

@@ -179,15 +179,9 @@ if df_visitas is not None:
             t_low = txt.lower()
             if t_low in palabras_prohibidas_com or len(txt) < 8:
                 return '🔴 Alerta: Vacío o Genérico', 'El comentario está vacío o usa expresiones genéricas ("bien", "ok", "sin novedad").'
-            
             if es_rep:
                 return '🔴 Alerta: Penalizado por Copy-Paste (Clonación)', 'El texto contiene elementos teóricos correctos, pero al estar repetido idénticamente en múltiples visitas, se invalida por falta de exploración individual genuina.'
-            
-            palabras_alta_calidad = [
-                'acepta', 'indiferente', 'objeción', 'objecion', 'escepticismo', 'evasivo', 'acuerdo', 
-                'compromiso', 'diferencia', 'valor', 'claro', 'dudas', 'explica', 'explicó', 'habla', 'habló', 
-                'revisa', 'revisó', 'conoce', 'conoció', 'prescribe', 'prescribirá'
-            ]
+            palabras_alta_calidad = ['acepta', 'indiferente', 'objeción', 'objecion', 'escepticismo', 'evasivo', 'acuerdo', 'compromiso', 'diferencia', 'valor', 'claro', 'dudas', 'explica', 'explicó', 'habla', 'habló', 'revisa', 'revisó', 'conoce', 'conoció', 'prescribe', 'prescribirá']
             if any(w in t_low for w in palabras_alta_calidad):
                 return '🟢 Alta Calidad (Técnica Aplicada)', 'El comentario evidencia de forma sólida la Fase 2 y es un registro único y personalizado.'
             else:
@@ -242,36 +236,4 @@ if df_visitas is not None:
         )
         df_rep_totales = df_rep_metodo.groupby('Representante', as_index=False).agg(Total_Rep=('Total', 'sum'))
         df_rep_metodo = pd.merge(df_rep_metodo, df_rep_totales, on='Representante')
-        df_rep_metodo['Porcentaje'] = (df_rep_metodo['Total'] / df_rep_metodo['Total_Rep'] * 100).round(1)
-        
-        def formato_etiqueta(row):
-            if row['Porcentaje'] >= 5.0:
-                return f"{row['Total']} ({row['Porcentaje']}%)"
-            return ""
-
-        df_rep_metodo['Texto_Barra'] = df_rep_metodo.apply(formato_etiqueta, axis=1)
-        
-        fig_metodo = px.bar(
-            df_rep_metodo, x='Total', y='Representante', color='Estado_Metodologico', barmode='stack',
-            text='Texto_Barra',
-            template='plotly_dark', title="<b>Adopción de la Técnica de Ventas por Representante (Penalización Estricta por Copia)</b>",
-            color_discrete_map={
-                '🟢 Visita Sobresaliente (Metodología Dominada)': '#2ECC71',
-                '🟡 En Proceso de Apropiación': '#F39C12',
-                '🔴 Riesgo Metodológico (Alerta)': '#E74C3C'
-            },
-            orientation='h'
-        )
-        fig_metodo.update_traces(textposition='inside', insidetextanchor='middle', textfont_size=11)
-        fig_metodo.update_layout(
-            paper_bgcolor='#1C202C', plot_bgcolor='#2D3346', height=max(450, len(representantes)*25),
-            xaxis_title="Cantidad de Visitas Únicas", yaxis_title="Representante",
-            yaxis={'categoryorder': 'total ascending'},
-            legend_title="Nivel Metodológico",
-            margin=dict(t=50, b=50, l=150, r=40)
-        )
-        # Renderizado de la gráfica de técnica de ventas en Streamlit
-        st.plotly_chart(fig_metodo, use_container_width=True)
-        
-        with st.expander("🔍 Ver detalle completo de auditoría (por Visita Única) con filtros de calidad y representante"):
-            st.markdown("<span style='color: #9AA5B1; font-size: 13px;'>Filt
+        df_rep_metodo['Porcentaje'] = (df_rep_metodo['Total'] / df

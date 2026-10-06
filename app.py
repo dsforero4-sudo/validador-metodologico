@@ -5,40 +5,14 @@ import plotly.graph_objects as go
 import os
 import io
 
-st.set_page_config(
-    page_title="Pharmadvisor | Validador Metodológico",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
+st.set_page_config(page_title="Pharmadvisor | Validador Metodológico", layout="wide", initial_sidebar_state="expanded")
 
 st.markdown("""
     <style>
-    .stApp { 
-        background-color: #2D3346; 
-        color: #FFFFFF; 
-        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    }
-    .ph-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding-bottom: 15px;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-        margin-bottom: 20px;
-    }
-    .ph-title {
-        color: #E6007E;
-        font-size: 28px;
-        font-weight: bold;
-        margin: 0;
-    }
-    .section-divider {
-        margin-top: 40px;
-        margin-bottom: 40px;
-        border: 0;
-        height: 1px;
-        background: rgba(255, 255, 255, 0.2);
-    }
+    .stApp { background-color: #2D3346; color: #FFFFFF; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+    .ph-header { display: flex; justify-content: space-between; align-items: center; padding-bottom: 15px; border-bottom: 1px solid rgba(255, 255, 255, 0.1); margin-bottom: 20px; }
+    .ph-title { color: #E6007E; font-size: 28px; font-weight: bold; margin: 0; }
+    .section-divider { margin-top: 40px; margin-bottom: 40px; border: 0; height: 1px; background: rgba(255, 255, 255, 0.2); }
     </style>
 """, unsafe_allow_html=True)
 
@@ -104,15 +78,11 @@ if df_visitas is not None:
     
     def check_repetido_individual(row):
         com = row['Comentario_Clean']
-        if com in ['', 'nan', 'none', '-']:
-            return False
+        if com in ['', 'nan', 'none', '-']: return False
         return row['Rep_Comentario_Count'] > 1
 
     df_unique['Es_Repetido'] = df_unique.apply(check_repetido_individual, axis=1)
     
-    # ==========================================
-    # GRÁFICA 3: ÍNDICE DE COPIADO POR REPRESENTANTE
-    # ==========================================
     st.subheader("📋 3. Auditoría de Calidad: Índice de Autorrepetición por Representante")
     st.markdown("<span style='color: #9AA5B1;'>Evaluación estricta de cuántas veces cada representante recicla sus propios comentarios entre sus visitas.</span>", unsafe_allow_html=True)
     st.markdown("---")
@@ -128,31 +98,15 @@ if df_visitas is not None:
     
     st.markdown("---")
     
-    rep_copia = df_unique.groupby('Representante').agg(
-        Total_Visitas=('Cod. visita', 'count'),
-        Comentarios_Repetidos=('Es_Repetido', lambda x: int(x.sum()))
-    ).reset_index()
-    
+    rep_copia = df_unique.groupby('Representante').agg(Total_Visitas=('Cod. visita', 'count'), Comentarios_Repetidos=('Es_Repetido', lambda x: int(x.sum()))).reset_index()
     rep_copia['Pct_Copia'] = (rep_copia['Comentarios_Repetidos'] / rep_copia['Total_Visitas'] * 100).round(1)
     rep_copia = rep_copia.sort_values(by='Pct_Copia', ascending=True)
     
     altura_grafico = max(450, len(rep_copia) * 25)
     
-    fig_bar_copia = px.bar(
-        rep_copia, x='Pct_Copia', y='Representante', text='Pct_Copia',
-        template='plotly_dark', title="<b>Índice de Autorrepetición (%) por Representante (Copy-Paste Interno)</b>",
-        color='Pct_Copia', color_continuous_scale=[[0.0, '#2ECC71'], [0.05, '#2ECC71'], [0.30, '#F39C12'], [0.31, '#E74C3C'], [1.0, '#C0392B']],
-        range_color=[0, 100],
-        orientation='h'
-    )
+    fig_bar_copia = px.bar(rep_copia, x='Pct_Copia', y='Representante', text='Pct_Copia', template='plotly_dark', title="<b>Índice de Autorrepetición (%) por Representante (Copy-Paste Interno)</b>", color='Pct_Copia', color_continuous_scale=[[0.0, '#2ECC71'], [0.05, '#2ECC71'], [0.30, '#F39C12'], [0.31, '#E74C3C'], [1.0, '#C0392B']], range_color=[0, 100], orientation='h')
     fig_bar_copia.update_traces(texttemplate='%{text}%', textposition='outside', textfont_size=11)
-    fig_bar_copia.update_layout(
-        paper_bgcolor='#1C202C', plot_bgcolor='#2D3346', height=altura_grafico,
-        xaxis_title="Índice de Autorrepetición (%)", yaxis_title="Representante",
-        xaxis=dict(range=[0, 115]),
-        yaxis={'categoryorder': 'total ascending'},
-        margin=dict(t=50, b=50, l=150, r=20)
-    )
+    fig_bar_copia.update_layout(paper_bgcolor='#1C202C', plot_bgcolor='#2D3346', height=altura_grafico, xaxis_title="Índice de Autorrepetición (%)", yaxis_title="Representante", xaxis=dict(range=[0, 115]), yaxis={'categoryorder': 'total ascending'}, margin=dict(t=50, b=50, l=150, r=20))
     st.plotly_chart(fig_bar_copia, use_container_width=True)
     
     with st.expander("Ver listado de visitas únicas con comentarios repetidos"):
@@ -160,9 +114,6 @@ if df_visitas is not None:
 
     st.markdown("<hr class='section-divider'>", unsafe_allow_html=True)
 
-    # ==========================================
-    # GRÁFICA 4: AUDITORÍA DE CALIDAD METODOLÓGICA
-    # ==========================================
     st.subheader("🎓 4. Auditoría de Calidad Metodológica (Técnica de Ventas Pharmadvisor - Visitas Únicas)")
     st.markdown("<span style='color: #9AA5B1;'>Evaluación inteligente de la Fase 2 (Comentarios) y Fase 1/3 (Objetivos) con penalización automática a Alerta ante registros con copy-paste.</span>", unsafe_allow_html=True)
     st.markdown("---")
@@ -211,12 +162,9 @@ if df_visitas is not None:
         def calificacion_global(row):
             c = row['Calidad_Comentario']
             o = row['Calidad_Objetivo']
-            if 'Alerta' in c or 'Alerta' in o:
-                return '🔴 Riesgo Metodológico (Alerta)'
-            elif 'Regular' in c or 'Regular' in o:
-                return '🟡 En Proceso de Apropiación'
-            else:
-                return '🟢 Visita Sobresaliente (Metodología Dominada)'
+            if 'Alerta' in c or 'Alerta' in o: return '🔴 Riesgo Metodológico (Alerta)'
+            elif 'Regular' in c or 'Regular' in o: return '🟡 En Proceso de Apropiación'
+            else: return '🟢 Visita Sobresaliente (Metodología Dominada)'
 
         df_audit_tec['Estado_Metodologico'] = df_audit_tec.apply(calificacion_global, axis=1)
         
@@ -231,9 +179,86 @@ if df_visitas is not None:
         
         st.markdown("---")
         
-        df_rep_metodo = df_audit_tec.groupby(['Representante', 'Estado_Metodologico'], as_index=False).agg(
-            Total=('Cod. visita', 'count')
-        )
+        df_rep_metodo = df_audit_tec.groupby(['Representante', 'Estado_Metodologico'], as_index=False).agg(Total=('Cod. visita', 'count'))
         df_rep_totales = df_rep_metodo.groupby('Representante', as_index=False).agg(Total_Rep=('Total', 'sum'))
         df_rep_metodo = pd.merge(df_rep_metodo, df_rep_totales, on='Representante')
-        df_rep_metodo['Porcentaje'] = (df_rep_metodo['Total'] / df
+        df_rep_metodo['Porcentaje'] = (df_rep_metodo['Total'] / df_rep_metodo['Total_Rep'] * 100).round(1)
+        
+        def formato_etiqueta(row):
+            if row['Porcentaje'] >= 5.0: return f"{row['Total']} ({row['Porcentaje']}%)"
+            return ""
+
+        df_rep_metodo['Texto_Barra'] = df_rep_metodo.apply(formato_etiqueta, axis=1)
+        
+        fig_metodo = px.bar(df_rep_metodo, x='Total', y='Representante', color='Estado_Metodologico', barmode='stack', text='Texto_Barra', template='plotly_dark', title="<b>Adopción de la Técnica de Ventas por Representante (Penalización Estricta por Copia)</b>", color_discrete_map={'🟢 Visita Sobresaliente (Metodología Dominada)': '#2ECC71', '🟡 En Proceso de Apropiación': '#F39C12', '🔴 Riesgo Metodológico (Alerta)': '#E74C3C'}, orientation='h')
+        fig_metodo.update_traces(textposition='inside', insidetextanchor='middle', textfont_size=11)
+        fig_metodo.update_layout(paper_bgcolor='#1C202C', plot_bgcolor='#2D3346', height=max(450, len(representantes)*25), xaxis_title="Cantidad de Visitas Únicas", yaxis_title="Representante", yaxis={'categoryorder': 'total ascending'}, legend_title="Nivel Metodológico", margin=dict(t=50, b=50, l=150, r=40))
+        st.plotly_chart(fig_metodo, use_container_width=True)
+        
+        with st.expander("🔍 Ver detalle completo de auditoría (por Visita Única) con filtros de calidad y representante"):
+            st.markdown("<span style='color: #9AA5B1; font-size: 13px;'>Filtra el detalle de visitas únicas según el nivel metodológico o el representante de interés.</span>", unsafe_allow_html=True)
+            
+            col_f_niv, col_f_rep = st.columns(2)
+            niveles_disponibles = ['Todos'] + sorted(df_audit_tec['Estado_Metodologico'].unique().tolist())
+            with col_f_niv:
+                filtro_nivel_sel = st.selectbox("Filtrar por Nivel Metodológico", options=niveles_disponibles, key="select_filtro_nivel")
+                
+            reps_disponibles_audit = ['Todos'] + sorted(df_audit_tec['Representante'].dropna().unique().tolist())
+            with col_f_rep:
+                filtro_rep_sel = st.selectbox("Filtrar por Representante", options=reps_disponibles_audit, key="select_filtro_rep_audit")
+                
+            df_tabla_filtrada = df_audit_tec.copy()
+            if filtro_nivel_sel != 'Todos': df_tabla_filtrada = df_tabla_filtrada[df_tabla_filtrada['Estado_Metodologico'] == filtro_nivel_sel]
+            if filtro_rep_sel != 'Todos': df_tabla_filtrada = df_tabla_filtrada[df_tabla_filtrada['Representante'] == filtro_rep_sel]
+                
+            st.markdown(f"<span style='color: #00D26A; font-size: 13px;'>Mostrando {len(df_tabla_filtrada):,} registros filtrados.</span>", unsafe_allow_html=True)
+            
+            st.dataframe(df_tabla_filtrada[['Representante', 'Cod. visita', 'Fecha visita', 'Médicos', 'Comentario', 'Calidad_Comentario', 'Justificacion_Comentario', 'Objetivo', 'Calidad_Objetivo', 'Justificacion_Objetivo', 'Estado_Metodologico']], use_container_width=True, hide_index=True)
+
+        st.markdown("<hr class='section-divider'>", unsafe_allow_html=True)
+        st.subheader("📄 Generación de Reporte Ejecutivo Gerencial con Gráficas")
+        st.markdown("<span style='color: #9AA5B1;'>Genera un informe analítico completo incrustando las visualizaciones comerciales interactivas para gerentes de distrito y línea.</span>", unsafe_allow_html=True)
+        
+        if st.button("Generar Informe Ejecutivo con Gráficas"):
+            html_chart_copia = fig_bar_copia.to_html(full_html=False, include_plotlyjs='cdn')
+            html_chart_metodo = fig_metodo.to_html(full_html=False, include_plotlyjs='cdn')
+            
+            pct_alertas = (alertas / total_v_audit * 100) if total_v_audit > 0 else 0
+            pct_sobresalientes = (sobresalientes / total_v_audit * 100) if total_v_audit > 0 else 0
+            
+            rep_resumen = df_audit_tec.groupby('Representante').agg(Visitas=('Cod. visita', 'count'), Alertas=('Estado_Metodologico', lambda x: (x == '🔴 Riesgo Metodológico (Alerta)').sum()), Copia=('Es_Repetido', 'sum')).reset_index()
+            rep_resumen['Pct_Riesgo'] = (rep_resumen['Alertas'] / rep_resumen['Visitas'] * 100).round(1)
+            criticos = rep_resumen.sort_values(by='Pct_Riesgo', ascending=False).head(5)
+            
+            tabla_html_rows = ""
+            for _, r in criticos.iterrows():
+                tabla_html_rows += f"<tr><td>{r['Representante']}</td><td>{r['Visitas']}</td><td>{r['Alertas']}</td><td>{r['Pct_Riesgo']}%</td></tr>"
+            
+            plantilla_html = """<html><head><meta charset="utf-8"><style>body {{ font-family: 'Segoe UI', Arial, sans-serif; color: #2C3E50; margin: 40px; line-height: 1.6; }} h1 {{ color: #E6007E; border-bottom: 3px solid #E6007E; padding-bottom: 8px; font-size: 24px; }} h2 {{ color: #2D3346; margin-top: 40px; border-bottom: 1px solid #BDC3C7; padding-bottom: 5px; font-size: 18px; }} .metrics-container {{ display: flex; justify-content: space-between; margin-bottom: 25px; }} .metric-card {{ background: #f8f9fa; border-left: 4px solid #E6007E; padding: 15px; width: 22%; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }} .metric-title {{ font-size: 11px; color: #7F8C8D; text-transform: uppercase; font-weight: bold; }} .metric-value {{ font-size: 18px; color: #2C3E50; font-weight: bold; margin-top: 5px; }} table {{ width: 100%; border-collapse: collapse; margin-top: 15px; margin-bottom: 25px; }} th, td {{ border: 1px solid #DDDDDD; padding: 10px; text-align: left; font-size: 12px; }} th {{ background-color: #2D3346; color: white; }} tr:nth-child(even) {{ background-color: #f9f9f9; }} .chart-container {{ margin: 30px 0; background: #1C202C; padding: 20px; border-radius: 8px; }} .recommendation-box {{ background: #fdf2f7; border-left: 4px solid #E6007E; padding: 20px; border-radius: 4px; margin-top: 30px; }}</style></head><body><h1>PHARMADVISOR | INFORME EJECUTIVO DE AUDITORÍA METODOLÓGICA</h1><p><b>Fecha de Emisión:</b> {fecha} | <b>Segmento:</b> Visitas a Médicos y Farmacias</p><h2>1. Resumen Ejecutivo del Ciclo</h2><div class="metrics-container"><div class="metric-card"><div class="metric-title">Visitas Únicas</div><div class="metric-value">{total_visitas}</div></div><div class="metric-card"><div class="metric-title">Índice de Clonación</div><div class="metric-value">{pct_clon}%</div></div><div class="metric-card"><div class="metric-title">Visitas Sobresalientes</div><div class="metric-value">{sobr_val} ({pct_sobr}%)</div></div><div class="metric-card"><div class="metric-title">Riesgo / Alertas</div><div class="metric-value">{alert_val} ({pct_alt}%)</div></div></div><h2>2. Hallazgos Analíticos y Visuales del Ciclo</h2><p>Las siguientes visualizaciones reflejan el comportamiento de autorrepetición de comentarios y el nivel de adopción de la técnica de ventas por representante:</p><div class="chart-container">{chart1}</div><div class="chart-container">{chart2}</div><h2>3. Representantes con Mayor Oportunidad de Acompañamiento (Top Riesgos)</h2><table><tr><th>Representante</th><th>Visitas Evaluadas</th><th>Registros en Alerta</th><th>% de Riesgo Metodológico</th></tr>{tabla_filas}</table><div class="recommendation-box"><h3 style="margin-top:0; color: #E6007E;">4. Recomendaciones de Acción para Gerentes de Distrito y Línea</h3><ol><li><b>Retroalimentación 1 a 1:</b> Programar sesiones de coaching con los asesores identificados con mayores índices de clonación para fomentar descripciones personalizadas de las objeciones del médico/farmacia.</li><li><b>Alineación en Objetivos SMART:</b> Reforzar en la planeación del siguiente ciclo que los objetivos redactados reflejen un comportamiento clínico o de prescripción y no tareas logísticas rutinarias.</li><li><b>Monitoreo Preventivo:</b> Utilizar este informe semanalmente para corregir desvíos antes del cierre oficial de ciclo.</li></ol></div></body></html>"""
+            
+            reporte_html = plantilla_html.format(
+                fecha=pd.Timestamp.now().strftime('%Y-%m-%d %H:%M'),
+                total_visitas=f"{total_v_audit:,}",
+                pct_clon=f"{pct_copia:.1f}",
+                sobr_val=f"{sobresalientes:,}",
+                pct_sobr=f"{(sobresalientes/total_v_audit*100):.1f}" if total_v_audit > 0 else "0.0",
+                alert_val=f"{alertas:,}",
+                pct_alt=f"{pct_alertas:.1f}",
+                chart1=html_chart_copia,
+                chart2=html_chart_metodo,
+                tabla_filas=tabla_html_rows
+            )
+            
+            st.success("¡Informe ejecutivo con gráficas generado exitosamente!")
+            st.download_button(
+                label="📥 Descargar Informe Ejecutivo Completo (HTML / Imprimible a PDF)",
+                data=reporte_html,
+                file_name=f"Informe_Gerencial_Graficas_Pharmadvisor_{pd.Timestamp.now().strftime('%Y%m%d')}.html",
+                mime="text/html"
+            )
+            st.info("💡 **Impresión a PDF:** Abre el archivo descargado en tu navegador web, presiona `Ctrl + P` (o `Cmd + P` en Mac) y selecciona **'Guardar como PDF'**.")
+    else:
+        st.warning("⚠️ No se pudieron localizar las columnas 'Comentario' y/o 'Objetivo' en el archivo cargado.")
+
+else:
+    st.info("👋 **Por favor carga el archivo de visitas** en la barra lateral para visualizar el validador metodológico.")

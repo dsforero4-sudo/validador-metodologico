@@ -200,7 +200,7 @@ if df_visitas is not None:
             if t_low in palabras_prohibidas_com or len(txt) < 8:
                 return '🔴 Alerta: Sin Objetivo Definido', 'El campo de objetivo está vacío o no especifica el comportamiento esperado.'
             elif any(t_low.startswith(act) for act in palabras_actividades):
-                return '🔴 Alerta: Confunde Actividad con Objetivo', 'Describe una tarea logística en lieu de definir un comportamiento clínico SMART.'
+                return '🔴 Alerta: Confunde Actividad con Objetivo', 'Describe una tarea logística en lugar de definir un comportamiento clínico SMART.'
             elif any(w in t_low for w in ['iniciar', 'reiniciar', 'aumentar', 'sostener', 'mantener', 'reemplazar', 'posicionar', 'evaluar', 'prescripción', 'uso']):
                 return '🟢 Alta Calidad (Comportamental SMART)', 'El objetivo está formulado correctamente como un comportamiento prescriptivo.'
             else:
@@ -303,23 +303,17 @@ if df_visitas is not None:
             )
 
         # ==========================================
-        # MÓDULO DE REPORTE EJECUTIVO CON GRÁFICAS EN PDF
+        # MÓDULO DE REPORTE EJECUTIVO CON GRÁFICAS NATIVAS (SIN KALEIDO)
         # ==========================================
         st.markdown("<hr class='section-divider'>", unsafe_allow_html=True)
         st.subheader("📄 Generación de Reporte Ejecutivo Gerencial con Gráficas")
-        st.markdown("<span style='color: #9AA5B1;'>Genera un informe analítico completo incrustando las visualizaciones comerciales para gerentes de distrito y línea.</span>", unsafe_allow_html=True)
+        st.markdown("<span style='color: #9AA5B1;'>Genera un informe analítico completo incrustando las visualizaciones comerciales interactivas para gerentes de distrito y línea.</span>", unsafe_allow_html=True)
         
         if st.button("Generar Informe Ejecutivo con Gráficas"):
-            import base64
+            # Generar HTML nativo de Plotly (incluyendo CDNs de Plotly para interactividad completa en el reporte)
+            html_chart_copia = fig_bar_copia.to_html(full_html=False, include_plotlyjs='cdn')
+            html_chart_metodo = fig_metodo.to_html(full_html=False, include_plotlyjs='cdn')
             
-            # Convertir gráficos Plotly a imágenes PNG en Base64 para el HTML
-            img_copia_bytes = fig_bar_copia.to_image(format="png", width=900, height=max(450, len(rep_copia) * 22), scale=2)
-            img_copia_b64 = base64.b64encode(img_copia_bytes).decode("utf-8")
-            
-            img_metodo_bytes = fig_metodo.to_image(format="png", width=900, height=max(450, len(representantes) * 22), scale=2)
-            img_metodo_b64 = base64.b64encode(img_metodo_bytes).decode("utf-8")
-            
-            # Análisis gerencial automatizado
             pct_alertas = (alertas / total_v_audit * 100) if total_v_audit > 0 else 0
             pct_sobresalientes = (sobresalientes / total_v_audit * 100) if total_v_audit > 0 else 0
             
@@ -336,96 +330,12 @@ if df_visitas is not None:
             <head>
                 <meta charset="utf-8">
                 <style>
-                    body {{ font-family: 'Segoe UI', Arial, sans-serif; color: #2C3E50; margin: 30px; line-height: 1.5; }}
+                    body {{ font-family: 'Segoe UI', Arial, sans-serif; color: #2C3E50; margin: 40px; line-height: 1.6; }}
                     h1 {{ color: #E6007E; border-bottom: 3px solid #E6007E; padding-bottom: 8px; font-size: 24px; }}
-                    h2 {{ color: #2D3346; margin-top: 35px; border-bottom: 1px solid #BDC3C7; padding-bottom: 5px; font-size: 18px; }}
-                    .metrics-container {{ display: flex; justify-content: space-between; margin-bottom: 20px; }}
-                    .metric-card {{ background: #f8f9fa; border-left: 4px solid #E6007E; padding: 12px; width: 22%; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }}
+                    h2 {{ color: #2D3346; margin-top: 40px; border-bottom: 1px solid #BDC3C7; padding-bottom: 5px; font-size: 18px; }}
+                    .metrics-container {{ display: flex; justify-content: space-between; margin-bottom: 25px; }}
+                    .metric-card {{ background: #f8f9fa; border-left: 4px solid #E6007E; padding: 15px; width: 22%; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }}
                     .metric-title {{ font-size: 11px; color: #7F8C8D; text-transform: uppercase; font-weight: bold; }}
                     .metric-value {{ font-size: 18px; color: #2C3E50; font-weight: bold; margin-top: 5px; }}
                     table {{ width: 100%; border-collapse: collapse; margin-top: 15px; margin-bottom: 25px; }}
-                    th, td {{ border: 1px solid #DDDDDD; padding: 10px; text-align: left; font-size: 12px; }}
-                    th {{ background-color: #2D3346; color: white; }}
-                    tr:nth-child(even) {{ background-color: #f9f9f9; }}
-                    .chart-container {{ text-align: center; margin: 25px 0; }}
-                    .chart-img {{ max-width: 100%; height: auto; border: 1px solid #ddd; border-radius: 4px; }}
-                    .recommendation-box {{ background: #fdf2f7; border-left: 4px solid #E6007E; padding: 15px; border-radius: 4px; margin-top: 20px; }}
-                </style>
-            </head>
-            <body>
-                <h1>PHARMADVISOR | INFORME EJECUTIVO DE AUDITORÍA METODOLÓGICA</h1>
-                <p><b>Fecha de Emisión:</b> {pd.Timestamp.now().strftime('%Y-%m-%d %H:%M')} | <b>Segmento:</b> Visitas a Médicos y Farmacias</p>
-                
-                <h2>1. Resumen Ejecutivo del Ciclo</h2>
-                <div class="metrics-container">
-                    <div class="metric-card">
-                        <div class="metric-title">Visitas Únicas</div>
-                        <div class="metric-value">{total_v_audit:,}</div>
-                    </div>
-                    <div class="metric-card">
-                        <div class="metric-title">Índice de Clonación</div>
-                        <div class="metric-value">{pct_copia:.1f}%</div>
-                    </div>
-                    <div class="metric-card">
-                        <div class="metric-title">Visitas Sobresalientes</div>
-                        <div class="metric-value">{sobresalientes:,} ({pct_sobresalientes:.1f}%)</div>
-                    </div>
-                    <div class="metric-card">
-                        <div class="metric-title">Riesgo / Alertas</div>
-                        <div class="metric-value">{alertas:,} ({pct_alertas:.1f}%)</div>
-                    </div>
-                </div>
-                
-                <h2>2. Hallazgos Analíticos y Visuales del Ciclo</h2>
-                <p>El análisis automatizado permite identificar patrones de autorrepetición en los comentarios y desviaciones en la formulación de objetivos comerciales. A continuación se presentan las visualizaciones de auditoría correspondientes al alcance seleccionado:</p>
-                
-                <div class="chart-container">
-                    <p><b>Figura 1: Índice de Autorrepetición (%) por Representante (Copy-Paste Interno)</b></p>
-                    <img class="chart-img" src="data:image/png;base64,{img_copia_b64}" />
-                </div>
-                
-                <div class="chart-container">
-                    <p><b>Figura 2: Adopción de la Técnica de Ventas por Representante (Penalización por Copia)</b></p>
-                    <img class="chart-img" src="data:image/png;base64,{img_metodo_b64}" />
-                </div>
-                
-                <h2>3. Representantes con Mayor Oportunidad de Acompañamiento (Top Riesgos)</h2>
-                <table>
-                    <tr>
-                        <th>Representante</th>
-                        <th>Visitas Evaluadas</th>
-                        <th>Registros en Alerta</th>
-                        <th>% de Riesgo Metodológico</th>
-                    </tr>
-            """
-            for _, r in criticos.iterrows():
-                reporte_html += f"<tr><td>{r['Representante']}</td><td>{r['Visitas']}</td><td>{r['Alertas']}</td><td>{r['Pct_Riesgo']}%</td></tr>"
-            
-            reporte_html += f"""
-                </table>
-                
-                <div class="recommendation-box">
-                    <h3 style="margin-top:0; color: #E6007E;">4. Recomendaciones de Acción para Gerentes de Distrito y Línea</h3>
-                    <ol>
-                        <li><b>Retroalimentación 1 a 1:</b> Programar sesiones de coaching con los asesores identificados con mayores índices de clonación para fomentar descripciones personalizadas de las objeciones del médico/farmacia.</li>
-                        <li><b>Alineación en Objetivos SMART:</b> Reforzar en la planeación del siguiente ciclo que los objetivos redactados reflejen un comportamiento clínico o de prescripción y no tareas logísticas rutinarias.</li>
-                        <li><b>Monitoreo Preventivo:</b> Utilizar este informe semanalmente para corregir desvíos antes del cierre oficial de ciclo.</li>
-                    </ol>
-                </div>
-            </body>
-            </html>
-            """
-            
-            st.success("¡Informe ejecutivo con gráficas generado exitosamente!")
-            st.download_button(
-                label="📥 Descargar Informe Ejecutivo Completo (HTML / Imprimible a PDF)",
-                data=reporte_html,
-                file_name=f"Informe_Gerencial_Graficas_Pharmadvisor_{pd.Timestamp.now().strftime('%Y%m%d')}.html",
-                mime="text/html"
-            )
-            st.info("💡 **Impresión a PDF:** Haz clic en el botón de descarga, abre el archivo HTML en tu navegador web, presiona `Ctrl + P` (o `Cmd + P` en Mac) y selecciona **'Guardar como PDF'**. Las gráficas y tablas se imprimen en alta resolución.")
-    else:
-        st.warning("⚠️ No se pudieron localizar las columnas 'Comentario' y/o 'Objetivo' en el archivo cargado.")
-
-else:
-    st.info("👋 **Por favor carga el archivo de visitas** en la barra lateral para visualizar el validador metodológico.")
+                    th, td {{ border: 1px solid #DDDDDD;
